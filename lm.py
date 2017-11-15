@@ -59,7 +59,7 @@ def get_terms(documents, n_terms=30000):
     return terms
 
 def get_lm(documents, word2idx):
-    alpha = 0.6
+    alpha = 0.2
     lms = []
     for document in documents:
         lm = np.zeros(len(word2idx), dtype=np.float32)
