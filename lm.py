@@ -43,7 +43,7 @@ def preprocess(json_path='../Project1_data/DBdoc.json', query_path='../Project1_
             queries.append(' '.join(words))
     return entitys, documents, query_ids, queries
 
-def get_terms(documents, n_terms=40000):
+def get_terms(documents, n_terms=30000):
     count_dict = defaultdict(lambda : 0)
     for document in documents:
         for word in document.split():
@@ -84,8 +84,8 @@ def topk_lm_score(lms, word2idx, query, k=100):
     scores = np.sum(lms[:,word_idxs], axis=1)
     rank = np.argsort(scores)
     topk = np.fliplr([rank[-k:]])[0]
-    scores = [scores[idx] for idx in topk]
-    return topk, scores
+    sorted_scores = scores[topk]
+    return topk, sorted_scores
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
