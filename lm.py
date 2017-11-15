@@ -12,6 +12,7 @@ import numpy as np
 from collections import defaultdict
 import operator
 from nltk.stem.lancaster import LancasterStemmer
+import argparse
 
 def remove_punc(word):
     new_word = ''.join([c for c in word if c not in string.punctuation])
@@ -42,7 +43,7 @@ def preprocess(json_path='../Project1_data/DBdoc.json', query_path='../Project1_
             queries.append(' '.join(words))
     return entitys, documents, query_ids, queries
 
-def get_terms(documents, n_terms=30000):
+def get_terms(documents, n_terms=40000):
     count_dict = defaultdict(lambda : 0)
     for document in documents:
         for word in document.split():
@@ -58,7 +59,7 @@ def get_terms(documents, n_terms=30000):
     return terms
 
 def get_lm(documents, word2idx):
-    alpha = 0.7
+    alpha = 0.6
     lms = []
     for document in documents:
         lm = np.zeros(len(word2idx), dtype=np.float32)
@@ -80,22 +81,29 @@ def get_lm(documents, word2idx):
 def topk_lm_score(lms, word2idx, query, k=100):
     # dealing with single query
     word_idxs = [word2idx[word] for word in query.split() if word in word2idx]
-    scores = []
-    for lm in lms:
-        score = np.sum(np.array([lm[word_idx] for word_idx in word_idxs]))
-        scores.append(score)
-    rank = np.argsort(np.array(scores))
+    scores = np.sum(lms[:,word_idxs], axis=1)
+    rank = np.argsort(scores)
     topk = np.fliplr([rank[-k:]])[0]
     scores = [scores[idx] for idx in topk]
     return topk, scores
 
 if __name__ == '__main__':
-    entitys, documents, query_ids, queries = preprocess()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-db_path', default='../Project1_data/DBdoc.json')
+    parser.add_argument('-query_path', default='../Project1_data/queries-v2.txt')
+    parser.add_argument('-output_path', default='./predict-rel.txt')
+    args = parser.parse_args()
+    # preprocessing
+    entitys, documents, query_ids, queries = preprocess(args.db_path, args.query_path)
+    # choose most frequent 30000 terms
     terms = get_terms(documents)
+    # mapping word to index
     word2idx = {term:idx for idx, term in enumerate(terms)}
+    # calculate uni-gram language model
     lms = get_lm(documents, word2idx)
-    with open('hyp-rel-queries.txt', 'w') as f:
+    with open(args.output_path, 'w') as f:
         for query_id, query in zip(query_ids, queries):
+            # find top-k documents
             topk_document_ids, scores = topk_lm_score(lms, word2idx, query)
             for rank_m1, (document_id, score) in enumerate(zip(topk_document_ids, scores)):
                 f.write('{}\tQ0\t<dbpedia:{}>\t{}\t{}\tSTANDARD\n'.format(
